@@ -35,9 +35,16 @@ docker compose ps
 
 Services démarrés : Zookeeper, Kafka, Spark Master, Spark Worker, Grafana, Airflow.
 
+![Capture resultat](screenshots/im1.png)
+
 Interfaces accessibles :
 - Spark Master : http://localhost:8080
+
+![Capture resultat](screenshots/im3.png)
+
 - Grafana : http://localhost:3000
+
+![Capture resultat](screenshots/im4.png)
 
 ### 0.4 Installation des dépendances Python
 
@@ -46,8 +53,8 @@ Spark tournant dans Docker, seules les dépendances client sont nécessaires en 
 ```bash
 pip install confluent-kafka faker
 ```
-
 ---
+![Capture resultat](screenshots/im5.png)
 
 ## PARTIE 1 — Ingestion Kafka <a name="partie-1"></a>
 
@@ -59,20 +66,27 @@ docker exec waveguard-kafka kafka-topics \
   --bootstrap-server localhost:9092 --create \
   --topic transactions --partitions 3 --replication-factor 1
 
+![Capture resultat](screenshots/im6.png)
+
 # Topic des alertes de fraude
 docker exec waveguard-kafka kafka-topics \
   --bootstrap-server localhost:9092 --create \
   --topic fraud-alerts --partitions 1 --replication-factor 1
+
+![Capture resultat](screenshots/im7.png)
 
 # Topic d'audit
 docker exec waveguard-kafka kafka-topics \
   --bootstrap-server localhost:9092 --create \
   --topic audit-log --partitions 2 --replication-factor 1
 
+  ![Capture resultat](screenshots/im8.png)
+
 # Vérification
 docker exec waveguard-kafka kafka-topics \
   --bootstrap-server localhost:9092 --describe --topic transactions
 ```
+![Capture resultat](screenshots/im9.png)
 
 ### 1.2 Producer Python
 
@@ -124,6 +138,10 @@ Pour garantir que toutes les transactions d'un compte arrivent dans la même par
 
 ---
 
+![Capture resultat](screenshots/im10.png)
+![Capture resultat](screenshots/im11.png)
+![Capture resultat](screenshots/im12.png)
+
 ## PARTIE 2 — Spark Structured Streaming <a name="partie-2"></a>
 
 ### 2.1 Règle 1 — Fraude par vélocité
@@ -173,8 +191,16 @@ Fenêtre 5 min, slide 1 min : [00:00–00:05] [00:01–00:06] [00:02–00:07] ..
 - Pour Kafka : renverrait toutes les alertes déjà envoyées → duplications massives
 
 ---
+# SIMULATION DES FRAUDES 
+![Capture resultat](screenshots/im13.png)
+![Capture resultat](screenshots/im15.png)
+![Capture resultat](screenshots/im16.png)
+
 
 ## PARTIE 3 — Tolérance aux pannes & Exactly-Once <a name="partie-3"></a>
+
+
+
 
 ### 3.1 Procédure de crash et reprise
 
@@ -187,6 +213,9 @@ spark-submit waveguard_detector.py &
 docker exec waveguard-kafka kafka-consumer-groups \
   --bootstrap-server localhost:9092 \
   --group spark-waveguard --describe
+
+![Capture resultat](screenshots/im17.png)
+![Capture resultat](screenshots/im18.png)
 
 # 3. Simuler un crash
 kill -9 <PID_SPARK>
@@ -206,6 +235,8 @@ batch 6  → 18:28  ✅
 batch 7  → 18:39  ✅  ← reprise immédiate !
 batch 8  → 18:41  ✅
 ```
+![Capture resultat](screenshots/im19.png)
+ 
 
 Gap de 11 minutes entre batch 6 et batch 7 = période de panne.
 Spark a repris exactement au batch 7 sans sauter ni répéter aucun batch. ✅
@@ -219,6 +250,8 @@ Messages accumulés pendant la panne :
 Après redémarrage : Spark rattrape automatiquement le retard. ✅
 
 ---
+
+![Capture resultat](screenshots/im20.png) 
 
 ### Q6 — Mécanisme de checkpoint Spark
 
@@ -245,6 +278,8 @@ Si `offsets/N` existe mais pas `commits/N` → batch N incomplet, Spark le rejou
 ---
 
 ## PARTIE 4 — Monitoring Grafana <a name="partie-4"></a>
+![Capture resultat](screenshots/im21.png) 
+![Capture resultat](screenshots/im22.png) 
 
 ### 4.1 Architecture de monitoring
 
@@ -277,7 +312,8 @@ sudo iptables -I INPUT -p tcp --dport 9998 -j ACCEPT
 | Transactions/min | Time Series | `waveguard_volume_alerts` | — |
 ## Dashboard Grafana
 
-![Dashboard WaveGuard](screenshots/image1.png)
+![Dashboard WaveGuard](screenshots/im23.png)
+![Dashboard WaveGuard](screenshots/im24.png)
 
 ### 4.4 Alerte configurée
 
@@ -286,6 +322,50 @@ sudo iptables -I INPUT -p tcp --dport 9998 -j ACCEPT
 - **Résultat** : notification `[FIRING:1] Fraude Vélocité Critique WaveGuard` reçue dans Slack ✅
 
 ---
+# Alerts Velocity 
+![Dashboard WaveGuard](screenshots/im25.png)
+# Apres rafraichissement :
+![Dashboard WaveGuard](screenshots/im26.png)
+# Alerts Volume
+![Dashboard WaveGuard](screenshots/im27.png)
+# Apres rafraichissement :
+![Dashboard WaveGuard](screenshots/im28.png)
+
+# Top Fraudeur: 
+![Dashboard WaveGuard](screenshots/im29.png)
+
+# Confuguration de l'alerte : 
+
+![Dashboard WaveGuard](screenshots/im30.png)
+
+![Dashboard WaveGuard](screenshots/im31.png)
+# Configuaration de l’alerte: 
+![Dashboard WaveGuard](screenshots/im32.png)
+
+![Dashboard WaveGuard](screenshots/im33.png)
+
+![Dashboard WaveGuard](screenshots/im34.png)
+
+![Dashboard WaveGuard](screenshots/im35.png)
+# CREER un workspac slack pour recevoir notifs 
+![Dashboard WaveGuard](screenshots/im36.png)
+# Test de slack :
+![Dashboard WaveGuard](screenshots/im37.png)
+
+![Dashboard WaveGuard](screenshots/im38.png)
+![Dashboard WaveGuard](screenshots/im39.png)
+
+# Liaison du slack avec les notifications d’alertes : 
+![Dashboard WaveGuard](screenshots/im40.png)
+# le teste passe 
+![Dashboard WaveGuard](screenshots/im41.png)
+
+# Maintenant les notifications d’alertes se voient directement dans le canal: 
+
+![Dashboard WaveGuard](screenshots/im42.png)
+
+
+
 
 ### Q8 — Architecture de monitoring en production
 
@@ -321,6 +401,11 @@ KafkaServer {
     user_producer="producer-secret";
 };
 ```
+ # Création du fichier admin.properties 
+
+![Dashboard WaveGuard](screenshots/im43.png)
+
+
 
 ### Op.2 — Définition des ACLs
 
@@ -334,6 +419,14 @@ kafka-acls --add --allow-principal User:spark --operation Read --topic transacti
 # Producer : lecture REFUSÉE
 kafka-acls --add --deny-principal User:producer --operation Read --topic transactions
 ```
+
+
+![Dashboard WaveGuard](screenshots/im44.png)
+
+# La configuration passe :
+
+![Dashboard WaveGuard](screenshots/im45.png)
+
 
 ### Op.3 — Test de refus d'accès
 
@@ -351,6 +444,9 @@ GroupAuthorizationException: Not authorized to access group: console-consumer-68
 Le compte `producer` est bien refusé en lecture. ✅
 
 ---
+ ![Dashboard WaveGuard](screenshots/im46.png)
+ ![Dashboard WaveGuard](screenshots/im47.png)
+
 
 ### Q9 — SASL/PLAIN vs SASL/SCRAM vs SASL/GSSAPI
 
